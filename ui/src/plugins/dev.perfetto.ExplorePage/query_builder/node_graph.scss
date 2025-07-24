@@ -64,10 +64,10 @@
   text-align: center;
 
   &:hover {
-    background-color: lighten($pf-minimal-background-active, 70%);
+    background-color: color-mix(in srgb, $pf-minimal-background-active 30%, white);
   }
 
-  .material-icons {
+  .pf-material-icons {
     font-size: 2rem;
   }
 

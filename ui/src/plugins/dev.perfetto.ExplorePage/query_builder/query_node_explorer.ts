@@ -245,7 +245,7 @@ export class QueryNodeExplorer
           this.selectedView === SelectedView.kSql &&
             (isAQuery(this.currentQuery)
               ? m(
-                  '.code-snippet',
+                  '.pf-code-snippet',
                   m(Button, {
                     title: 'Copy to clipboard',
                     onclick: () => copyToClipboard(sql),
@@ -257,7 +257,7 @@ export class QueryNodeExplorer
           this.selectedView === SelectedView.kProto &&
             (isAQuery(this.currentQuery)
               ? m(
-                  '.code-snippet',
+                  '.pf-code-snippet',
                   m(Button, {
                     title: 'Copy to clipboard',
                     onclick: () => copyToClipboard(textproto),

@@ -35,7 +35,7 @@ class TraceErrorIcon implements m.ClassComponent<TraceImplAttrs> {
       ? `${totErrors} import or data loss errors detected.`
       : `Metric error detected.`;
     return m(
-      '.error-box',
+      '.pf-error-box',
       m(
         Popup,
         {
@@ -47,13 +47,13 @@ class TraceErrorIcon implements m.ClassComponent<TraceImplAttrs> {
             this.tracePopupErrorDismissed = true;
           },
         },
-        m('.error-popup', 'Data-loss/import error. Click for more info.'),
+        m('.pf-error-popup', 'Data-loss/import error. Click for more info.'),
       ),
       m(
         'a.error',
         {href: '#!/info'},
         m(
-          'i.material-icons',
+          'i.pf-material-icons',
           {
             title: message + ` Click for more info.`,
           },
@@ -73,7 +73,7 @@ export class Topbar implements m.ClassComponent<TopbarAttrs> {
   view({attrs}: m.Vnode<TopbarAttrs>) {
     const {omnibox, trace} = attrs;
     return m(
-      '.topbar',
+      '.pf-topbar',
       {
         class: AppImpl.instance.sidebar.visible ? '' : 'hide-sidebar',
       },

@@ -24,30 +24,50 @@ export let SELECTION_FILL_COLOR = '#8398e64d';
 export let OVERVIEW_TIMELINE_NON_VISIBLE_COLOR = '#c8c8c8cc';
 export let DEFAULT_DETAILS_CONTENT_HEIGHT = 308;
 export let BACKGROUND_COLOR = '#ffffff';
-export let FOREGROUND_COLOR = '#222';
-export let COLLAPSED_BACKGROUND = '#ffffff';
-export let EXPANDED_BACKGROUND = '#ffffff';
+export let FOREGROUND_COLOR = '#121212';
+export let DIVIDER_COLOR = '#999';
+export let TRACK_COLLAPSED_BACKGROUND = '#ffffff';
+export let TRACK_EXPANDED_BACKGROUND = '#ffffff';
+export let FONT_NAME = 'Roboto Condensed';
+export let TRACK_LOADING_BACKGROUND = '#eee';
+export let TRACK_LOADING_FOREGROUND = '#666';
+export let TRACK_LEGEND_BACKGROUND = 'rgba(255, 255, 255, 0.6)';
+export let TRACK_LEGEND_FOREGROUND = '#666';
+export let TRACK_HISTOGRAM_NEUTRAL_FILL_COLOR = 'rgba(240, 240, 240, 1)';
+export let TRACK_HATCH_PATTERN_COLOR = 'rgba(255, 255, 255, 0.3)';
+export let NOTES_PANEL_TEXT_COLOR = '#3c4b5d';
+export let NOTES_PANEL_NOTE_TEXT_BACKGROUND = 'rgba(255, 255, 255, 0.8)';
 
 export function initCssConstants() {
-  TRACK_SHELL_WIDTH = getCssNum('--track-shell-width') ?? TRACK_SHELL_WIDTH;
-  SIDEBAR_WIDTH = getCssNum('--sidebar-width') ?? SIDEBAR_WIDTH;
-  TRACK_BORDER_COLOR = getCssStr('--track-border-color') ?? TRACK_BORDER_COLOR;
-  TOPBAR_HEIGHT = getCssNum('--topbar-height') ?? TOPBAR_HEIGHT;
+  TRACK_SHELL_WIDTH = getCssNum('--pf-track-shell-width') ?? TRACK_SHELL_WIDTH;
+  SIDEBAR_WIDTH = getCssNum('--pf-sidebar-width') ?? SIDEBAR_WIDTH;
+  TRACK_BORDER_COLOR = getCssStr('--pf-track-border-color') ?? TRACK_BORDER_COLOR;
+  TOPBAR_HEIGHT = getCssNum('--pf-topbar-height') ?? TOPBAR_HEIGHT;
   SELECTION_STROKE_COLOR =
-    getCssStr('--selection-stroke-color') ?? SELECTION_STROKE_COLOR;
+    getCssStr('--pf-selection-stroke-color') ?? SELECTION_STROKE_COLOR;
   SELECTION_FILL_COLOR =
-    getCssStr('--selection-fill-color') ?? SELECTION_FILL_COLOR;
+    getCssStr('--pf-selection-fill-color') ?? SELECTION_FILL_COLOR;
   OVERVIEW_TIMELINE_NON_VISIBLE_COLOR =
-    getCssStr('--overview-timeline-non-visible-color') ??
+    getCssStr('--pf-overview-timeline-non-visible-color') ??
     OVERVIEW_TIMELINE_NON_VISIBLE_COLOR;
   DEFAULT_DETAILS_CONTENT_HEIGHT =
-    getCssNum('--details-content-height') ?? DEFAULT_DETAILS_CONTENT_HEIGHT;
-  BACKGROUND_COLOR = getCssStr('--main-background-color') ?? BACKGROUND_COLOR;
-  FOREGROUND_COLOR = getCssStr('--main-foreground-color') ?? FOREGROUND_COLOR;
-  COLLAPSED_BACKGROUND =
-    getCssStr('--collapsed-background') ?? COLLAPSED_BACKGROUND;
-  EXPANDED_BACKGROUND =
-    getCssStr('--expanded-background') ?? EXPANDED_BACKGROUND;
+    getCssNum('--pf-details-content-height') ?? DEFAULT_DETAILS_CONTENT_HEIGHT;
+  BACKGROUND_COLOR = getCssStr('--pf-viewer-background') ?? BACKGROUND_COLOR;
+  FOREGROUND_COLOR = getCssStr('--pf-main-color') ?? FOREGROUND_COLOR;
+  DIVIDER_COLOR = getCssStr('--pf-viewer-dividing-line-color') ?? DIVIDER_COLOR;
+  TRACK_COLLAPSED_BACKGROUND =
+    getCssStr('--pf-track-collapsed-background') ?? TRACK_COLLAPSED_BACKGROUND;
+  TRACK_EXPANDED_BACKGROUND =
+    getCssStr('--pf-track-expanded-background') ?? TRACK_EXPANDED_BACKGROUND;
+  FONT_NAME = getCssStr('--pf-font') ?? FONT_NAME;
+  TRACK_LOADING_BACKGROUND = getCssStr('--pf-track-loading-background') ?? TRACK_LOADING_BACKGROUND;
+  TRACK_LOADING_FOREGROUND = getCssStr('--pf-track-loading-color') ?? TRACK_LOADING_FOREGROUND;
+  TRACK_LEGEND_BACKGROUND = getCssStr('--pf-track-legend-background') ?? TRACK_LEGEND_BACKGROUND;
+  TRACK_LEGEND_FOREGROUND = getCssStr('--pf-track-legend-color') ?? TRACK_LEGEND_FOREGROUND;
+  TRACK_HISTOGRAM_NEUTRAL_FILL_COLOR = getCssStr('--pf-track-histogram-neutral-color') ?? TRACK_HISTOGRAM_NEUTRAL_FILL_COLOR;
+  TRACK_HATCH_PATTERN_COLOR = getCssStr('--pf-track-hatch-pattern-color') ?? TRACK_HATCH_PATTERN_COLOR;
+  NOTES_PANEL_TEXT_COLOR = getCssStr('--pf-notes-panel-color') ?? NOTES_PANEL_TEXT_COLOR;
+  NOTES_PANEL_NOTE_TEXT_BACKGROUND = getCssStr('--pf-notes-panel-note-text-background') ?? NOTES_PANEL_NOTE_TEXT_BACKGROUND;
 }
 
 function getCssStr(prop: string): string | undefined {

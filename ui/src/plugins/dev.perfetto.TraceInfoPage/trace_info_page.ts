@@ -112,7 +112,7 @@ class StatsSection implements m.ClassComponent<StatsSectionAttrs> {
     const tableRows = data.map((row) => {
       const help = [];
       if (Boolean(row.description)) {
-        help.push(m('i.material-icons.contextual-help', 'help_outline'));
+        help.push(m('i.pf-material-icons.contextual-help', 'help_outline'));
       }
       const idx = row.idx !== '' ? `[${row.idx}]` : '';
       return m(
@@ -513,7 +513,7 @@ export class TraceInfoPage implements m.ClassComponent<TraceInfoPageAttrs> {
   view({attrs}: m.CVnode<TraceInfoPageAttrs>) {
     const engine = assertExists(this.engine);
     return m(
-      '.trace-info-page',
+      '.pf-trace-info-page',
       m(LoadingErrors, {trace: attrs.trace}),
       m(StatsSection, {
         engine,

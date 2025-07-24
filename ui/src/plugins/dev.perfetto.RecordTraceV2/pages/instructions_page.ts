@@ -83,17 +83,17 @@ class InstructionsPage implements m.ClassComponent<RecMgrAttrs> {
             this.docsLink.replace('https://', ''),
           ),
         ),
-      this.cmdline && m('.code-snippet', m('code', this.cmdline)),
+      this.cmdline && m('.pf-code-snippet', m('code', this.cmdline)),
       m('p', 'Save the file below as: config.pbtx'),
       m(
-        '.code-snippet',
+        '.pf-code-snippet',
         m(
           'button',
           {
             title: 'Copy to clipboard',
             onclick: () => copyToClipboard(this.configTxt),
           },
-          m('i.material-icons', 'assignment'),
+          m('i.pf-material-icons', 'assignment'),
         ),
         m('code', this.configTxt),
       ),

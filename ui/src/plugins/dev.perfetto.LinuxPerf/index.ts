@@ -26,7 +26,7 @@ import {
 } from '../../public/track_kinds';
 import {getThreadUriPrefix} from '../../public/utils';
 import {TrackNode} from '../../public/workspace';
-import {NUM, NUM_NULL, STR_NULL} from '../../trace_processor/query_result';
+import {NUM, NUM_NULL, STR, STR_NULL} from '../../trace_processor/query_result';
 import {Flamegraph} from '../../widgets/flamegraph';
 import ProcessThreadGroupsPlugin from '../dev.perfetto.ProcessThreadGroups';
 import TraceProcessorTrackPlugin from '../dev.perfetto.TraceProcessorTrack';
@@ -59,19 +59,26 @@ export default class implements PerfettoPlugin {
 
   private async addProcessPerfSamplesTracks(trace: Trace) {
     const pResult = await trace.engine.query(`
-      SELECT DISTINCT upid
+      SELECT DISTINCT upid, pct.name AS cntrName
       FROM perf_sample
       JOIN thread USING (utid)
+      JOIN perf_counter_track AS pct USING (perf_session_id)
       WHERE
         callsite_id IS NOT NULL AND
-        upid IS NOT NULL
+        upid IS NOT NULL AND
+        pct.is_timebase
     `);
 
     // Remember all the track URIs so we can use them in the command.
     const trackUris: string[] = [];
 
-    for (const it = pResult.iter({upid: NUM}); it.valid(); it.next()) {
+    for (
+      const it = pResult.iter({upid: NUM, cntrName: STR});
+      it.valid();
+      it.next()
+    ) {
       const upid = it.upid;
+      const cntrName = it.cntrName;
       const uri = makeUriForProc(upid);
       trackUris.push(uri);
       trace.tracks.registerTrack({
@@ -87,7 +94,7 @@ export default class implements PerfettoPlugin {
         .getGroupForProcess(upid);
       const track = new TrackNode({
         uri,
-        name: 'Process Callstacks',
+        name: `(process aggregate) | ${cntrName}`,
         sortOrder: -40,
       });
       group?.addChildInOrder(track);
@@ -110,14 +117,14 @@ export default class implements PerfettoPlugin {
 
   private async addThreadPerfSamplesTracks(trace: Trace) {
     const tResult = await trace.engine.query(`
-      select distinct
-        utid,
-        tid,
-        thread.name as threadName,
-        upid
-      from perf_sample
-      join thread using (utid)
-      where callsite_id is not null
+      SELECT DISTINCT
+        upid, utid, tid, thread.name as threadName, pct.name AS cntrName
+      FROM perf_sample
+      JOIN thread USING (utid)
+      JOIN perf_counter_track AS pct USING (perf_session_id)
+      WHERE
+        callsite_id IS NOT NULL AND
+        pct.is_timebase
     `);
     for (
       const it = tResult.iter({
@@ -125,15 +132,16 @@ export default class implements PerfettoPlugin {
         tid: NUM,
         threadName: STR_NULL,
         upid: NUM_NULL,
+        cntrName: STR,
       });
       it.valid();
       it.next()
     ) {
-      const {threadName, utid, tid, upid} = it;
+      const {threadName, utid, tid, upid, cntrName} = it;
       const title =
         threadName === null
-          ? `Thread Callstacks ${tid}`
-          : `${threadName} Callstacks ${tid}`;
+          ? `Thread ${tid} | ${cntrName}`
+          : `${threadName} ${tid} | ${cntrName}`;
       const uri = `${getThreadUriPrefix(upid, utid)}_perf_samples_profile`;
       trace.tracks.registerTrack({
         uri,

@@ -138,10 +138,7 @@ export default class implements PerfettoPlugin {
       it.next()
     ) {
       const {threadName, utid, tid, upid, cntrName} = it;
-      const title =
-        threadName === null
-          ? `Thread ${tid} | ${cntrName}`
-          : `${threadName} ${tid} | ${cntrName}`;
+      const title = `${threadName ?? 'Thread'} ${tid} | ${cntrName}`;
       const uri = `${getThreadUriPrefix(upid, utid)}_perf_samples_profile`;
       trace.tracks.registerTrack({
         uri,

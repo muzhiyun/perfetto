@@ -152,6 +152,10 @@ inline uint32_t ToUInt32(const char* str) {
   return static_cast<uint32_t>(strtoul(str, nullptr, 10));
 }
 
+inline uint64_t ToUInt64(const std::string& str) {
+  return static_cast<uint64_t>(strtoull(str.c_str(), nullptr, 10));
+}
+
 }  // namespace
 
 // static
@@ -561,6 +565,16 @@ void ProcessStatsDataSource::WriteAllProcessStats() {
     std::string proc_status = ReadProcPidFile(pid, "status");
     if (proc_status.empty())
       continue;
+
+    std::string dmabuf_rss = ReadProcPidFile(pid, "dmabuf_rss");
+    if (!dmabuf_rss.empty()) {
+      CachedProcessStats& cached = process_stats_cache_[pid];
+      uint32_t counter = static_cast<uint32_t>(ToUInt64(dmabuf_rss) / 1024);
+      if (counter != cached.dmabuf_rss_kb) {
+        GetOrCreateStatsProcess(pid)->set_dmabuf_rss_kb(counter);
+        cached.dmabuf_rss_kb = counter;
+      }
+    }
 
     if (scan_smaps_rollup_) {
       std::string proc_smaps_rollup = ReadProcPidFile(pid, "smaps_rollup");

@@ -1,0 +1,148 @@
+name: Sync Upstream by commit(cherry-pick)
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch: 
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/google/perfetto.git || true
+          git config user.name "GitHub Actions"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Fetch upstream changes and tags
+        run: |
+          git fetch upstream
+          git fetch upstream --tags
+
+      - name: Get new commits from upstream
+        id: get_commits
+        run: |
+          COMMITS=$(git log HEAD..upstream/main --oneline --reverse | cut -d' ' -f1)
+          if [ -z "$COMMITS" ]; then
+            echo "has_new_commits=false" >> $GITHUB_OUTPUT
+            echo "No new commits found"
+          else
+            echo "has_new_commits=true" >> $GITHUB_OUTPUT
+            echo "Found new commits: $COMMITS"
+            COMMITS_LINE=$(echo "$COMMITS" | tr '\n' ',')
+            COMMITS_LINE=${COMMITS_LINE%,}
+            echo "COMMITS_LINE: $COMMITS_LINE"
+            echo "commits=$COMMITS_LINE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if there are new tags
+        id: check_tags
+        run: |
+          UPSTREAM_TAGS=$(git ls-remote --tags upstream | awk '{print $2}' | cut -d '/' -f 3 | sed 's/\^{}//g' | LC_ALL=C sort -u)
+          LOCAL_TAGS=$(git tag | LC_ALL=C sort -u)
+
+          echo "Found upstream tags: $UPSTREAM_TAGS"
+          echo "Found local tags: $LOCAL_TAGS"
+
+          NEW_TAGS=$(comm -13 <(echo "$LOCAL_TAGS" | LC_ALL=C sort -u) <(echo "$UPSTREAM_TAGS" | LC_ALL=C sort -u))
+
+          if [ -n "$NEW_TAGS" ]; then
+            echo "has_new_tags=true" >> $GITHUB_OUTPUT
+            echo "Found new tags: $NEW_TAGS"
+            TAGS_LINE=$(echo "$NEW_TAGS" | tr '\n' ',')
+            TAGS_LINE=${TAGS_LINE%,}
+            echo "TAGS_LINE=$TAGS_LINE"
+            echo "tags=$TAGS_LINE" >> $GITHUB_OUTPUT
+          else
+            echo "has_new_tags=false" >> $GITHUB_OUTPUT
+            echo "No new tags found"
+          fi
+
+      - name: Cherry-pick new commits
+        id: cherry
+        if: steps.get_commits.outputs.has_new_commits == 'true'
+        run: |
+          IFS=',' read -ra COMMIT_ARRAY <<< "${{ steps.get_commits.outputs.commits }}"
+          CONFLICT=false
+          CONFLICT_COMMIT=""
+          
+          for commit in "${COMMIT_ARRAY[@]}"; do
+            echo "Cherry-picking commit: $commit"
+            if git cherry-pick $commit; then
+              echo "Successfully cherry-picked $commit"
+            else
+              echo "Failed to cherry-pick $commit"
+              CONFLICT=true
+              CONFLICT_COMMIT=$commit
+
+              git add .
+              git commit -m "WIP: Cherry-pick conflict for $commit - NEEDS MANUAL RESOLUTION" --allow-empty
+              
+              break
+            fi
+          done
+          
+          if [ "$CONFLICT" = true ]; then
+            echo "conflict_commit=$CONFLICT_COMMIT" >> $GITHUB_OUTPUT
+            echo "conflict=true" >> $GITHUB_OUTPUT
+
+            BRANCH_NAME="cherry-pick-conflict-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b $BRANCH_NAME
+            git push origin $BRANCH_NAME
+            echo "conflict_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+            
+          else
+            echo "conflict=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR on conflict
+        if: steps.cherry.outputs.conflict == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {        
+              const response = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head: "${{ steps.cherry.outputs.conflict_branch }}",
+                base: "main",
+                title: "Cherry-pick conflict for commit ${{ steps.cherry.outputs.conflict_commit }}",
+                body: `Cherry-pick of commit \`${{ steps.cherry.outputs.conflict_commit }}\` failed due to conflict, Please fix it.`,
+                draft: true,
+              });
+              console.log(`Created PR: ${response.data.html_url}`);
+            } catch (error) {
+              console.error('Failed to create PR:', error);
+            }
+            exit 1
+
+      - name: Sync upstream tags
+        if: steps.check_tags.outputs.has_new_tags == 'true'
+        run: |
+          IFS=',' read -ra TAG_ARRAY <<< "${{ steps.check_tags.outputs.tags }}"
+          for tag in "${TAG_ARRAY[@]}"; do
+            echo "Syncing tag: $tag"
+            COMMIT_HASH=$(git rev-list -n 1 upstream/$tag)
+            git tag -a "$tag" "$COMMIT_HASH" -m "Synced from upstream tag $tag"
+          done
+
+      - name: Push changes to origin
+        if: steps.get_commits.outputs.has_new_commits == 'true' || steps.check_tags.outputs.has_new_tags == 'true'
+        run: |
+          if [ "${{ steps.get_commits.outputs.has_new_commits }}" = "true" ]; then
+            git push origin HEAD:main
+          fi
+
+          if [ "${{ steps.check_tags.outputs.has_new_tags }}" = "true" ]; then
+            git push origin --tags
+          fi

@@ -1,0 +1,91 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch: 
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/google/perfetto.git || true
+          git config user.name "GitHub Actions"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Fetch upstream changes and tags
+        run: |
+          git fetch upstream
+          git fetch upstream --tags
+
+      - name: Check if there are new changes
+        id: check_changes
+        run: |
+          if git diff --quiet HEAD upstream/main; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No new changes detected"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "New changes detected"
+          fi
+
+      - name: Check if there are new tags
+        id: check_tags
+        run: |
+          UPSTREAM_TAGS=$(git ls-remote --tags upstream | awk '{print $2}' | cut -d '/' -f 3 | sed 's/\^{}//g' | LC_ALL=C sort -u)
+          LOCAL_TAGS=$(git tag | LC_ALL=C sort -u)
+
+          echo "Found upstream tags: $UPSTREAM_TAGS"
+          echo "Found local tags: $LOCAL_TAGS"
+
+          NEW_TAGS=$(comm -13 <(echo "$LOCAL_TAGS" | LC_ALL=C sort -u) <(echo "$UPSTREAM_TAGS" | LC_ALL=C sort -u))
+
+          if [ -n "$NEW_TAGS" ]; then
+            echo "has_new_tags=true" >> $GITHUB_OUTPUT
+            echo "Found new tags: $NEW_TAGS"
+            TAGS_LINE=$(echo "$NEW_TAGS" | tr '\n' ',')
+            TAGS_LINE=${TAGS_LINE%,}
+            echo "TAGS_LINE=$TAGS_LINE"
+            echo "tags=$TAGS_LINE" >> $GITHUB_OUTPUT
+          else
+            echo "has_new_tags=false" >> $GITHUB_OUTPUT
+            echo "No new tags found"
+          fi
+
+      - name: Merge upstream changes
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git merge upstream/main --no-edit --allow-unrelated-histories || \
+          (echo "Merge conflict occurred, attempting theirs strategy" && \
+           git merge -Xtheirs upstream/main --allow-unrelated-histories)
+
+      - name: Sync upstream tags
+        if: steps.check_tags.outputs.has_new_tags == 'true'
+        run: |
+          IFS=',' read -ra TAG_ARRAY <<< "${{ steps.check_tags.outputs.tags }}"
+          for tag in "${TAG_ARRAY[@]}"; do
+            echo "Syncing tag: $tag"
+            COMMIT_HASH=$(git rev-list -n 1 upstream/$tag)
+            git tag -a "$tag" "$COMMIT_HASH" -m "Synced from upstream tag $tag"
+          done
+
+      - name: Push changes to origin
+        if: steps.check_changes.outputs.has_changes == 'true' || steps.check_tags.outputs.has_new_tags == 'true'
+        run: |
+          if [ "${{ steps.check_changes.outputs.has_changes }}" = "true" ]; then
+            git push origin HEAD:main
+          fi
+
+          if [ "${{ steps.check_tags.outputs.has_new_tags }}" = "true" ]; then
+            git push origin --tags
+          fi

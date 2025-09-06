@@ -1,0 +1,119 @@
+name: Build and Release Perfetto UI When New TAG Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch: 
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Get triggered tag info
+        id: tag_info
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Triggered by tag: $TAG_NAME"
+
+      - name: Install build dependencies
+        run: |
+          git config --global init.defaultBranch main
+          tools/install-build-deps --ui
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Build UI
+        run: |
+          mkdir -p out/ui
+          ui/build
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "ui/out/dist" ]; then
+            echo "UI build output not found at ui/out/dist/"
+            echo "Checking alternative locations..."
+            if [ -d "out/ui/dist" ]; then
+              echo "Found output at out/ui/dist/"
+              mkdir -p ui/out
+              cp -r out/ui/dist ui/out
+            else
+              echo "No build output found!"
+              exit 1
+            fi
+          fi
+      
+      - name: Get version info
+        id: version
+        run: |
+          if [ -d "${{ github.workspace }}/ui/out/dist" ]; then
+            DIST_DIR="${{ github.workspace }}/ui/out/dist"
+            # 查找形如v51.2-8172e1f79的文件夹
+            VERSION_DIR=$(find "$DIST_DIR" -maxdepth 1 -type d -name "v*-*" | head -n 1)
+            if [ -n "$VERSION_DIR" ]; then
+              VERSION_HASH=$(basename "$VERSION_DIR")
+              echo "version_hash=$VERSION_HASH" >> $GITHUB_OUTPUT
+              VERSION=$(echo "$VERSION_HASH" | cut -d'-' -f1)
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+              echo "Using dist directory version: $VERSION version_hash: $VERSION_HASH"
+            else
+              echo "version=unknown" >> $GITHUB_OUTPUT
+              echo "version_hash=unknown-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+              echo "No version found in dist directory, using 'unknown'"
+            fi
+          else
+            echo "version=${{ steps.tag_info.outputs.tag_name }}" >> $GITHUB_OUTPUT
+            echo "version_hash=${{ steps.tag_info.outputs.tag_name }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+            echo "Using triggered tag as version: ${{ steps.tag_info.outputs.tag_name }} version_hash: $VERSION_HASH"
+          fi
+
+      - name: Delete the tag&release with the same version if any
+        run: |
+          git fetch --tags origin
+          echo "Attempting to delete release and tag: ui-${{ steps.version.outputs.version }}"
+          gh release delete "Perfetto-UI-${{ steps.version.outputs.version }}" --yes || echo "No existing release to delete"
+          git tag -d "ui-${{ steps.version.outputs.version }}" || echo "Local tag does not exist"
+          git push origin ":refs/tags/ui-${{ steps.version.outputs.version }}" || echo "Remote tag does not exist"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Package build artifacts
+        run: |
+          cd ui/out/dist
+          zip -r ${{ github.workspace }}/perfetto-ui-build-${{ steps.version.outputs.version_hash }}-$(date +%Y%m%d-%H%M%S).zip ./*
+          cd ${{ github.workspace }}
+          
+      - name: List directory structure
+        run: |
+          echo "Listing workspace directory:"
+          ls -la ${{ github.workspace }}
+          find ${{ github.workspace }} -name "perfetto-ui-build-*.zip" 
+          #echo "Listing subdirectory (if exists):"
+          #ls -laR ${{ github.workspace }}/out/ || echo "subdirectory does not exist"
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ui-${{ steps.version.outputs.version }}
+          name: Perfetto-UI-${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: perfetto-ui-build-*.zip
